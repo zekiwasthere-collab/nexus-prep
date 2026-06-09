@@ -33,6 +33,7 @@ import {
 import { mockQuestions } from "./questions";
 import { courseModules } from "./modulesData";
 import { Question, CourseModule, UserProgress, MockExamResult, StudyConcept } from "./types";
+import { courseChapters } from "./courseChapters";
 
 export default function App() {
   // --- LOCAL PERSISTENCE ---
@@ -63,6 +64,165 @@ export default function App() {
   // View types: 'dashboard' | 'study' | 'practice' | 'simulator' | 'review'
   const [activeTab, setActiveTab] = useState<string>("dashboard");
 
+  // --- QUESTIONS POOL ---
+  const [questionsPool, setQuestionsPool] = useState<Question[]>(() => {
+    const saved = localStorage.getItem("ethio_exit_prep_questions_pool");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return mockQuestions;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("ethio_exit_prep_questions_pool", JSON.stringify(questionsPool));
+  }, [questionsPool]);
+
+  // --- COMPILER SYSTEMS ---
+  const [compilingSubjectMap, setCompilingSubjectMap] = useState<Record<number, boolean>>({});
+  const [compilingStatusMessage, setCompilingStatusMessage] = useState<Record<number, string>>({});
+
+  const compileSubjectPool = async (moduleIdx: number) => {
+    if (compilingSubjectMap[moduleIdx]) return;
+    setCompilingSubjectMap(prev => ({ ...prev, [moduleIdx]: true }));
+    setCompilingStatusMessage(prev => ({ ...prev, [moduleIdx]: "Drafting initial syllabus topics..." }));
+
+    const course = courseModules[moduleIdx];
+    try {
+      const finalNewQuestions: Question[] = [];
+      const batches = [
+        { batchNo: 1, count: 20, desc: "Compiling Academic Core (Questions 11-30)..." },
+        { batchNo: 2, count: 20, desc: "Refining Applied Practice Scenarios (Questions 31-50)..." }
+      ];
+
+      for (const batch of batches) {
+        setCompilingStatusMessage(prev => ({ ...prev, [moduleIdx]: batch.desc }));
+        
+        const response = await fetch("/api/gemini/quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            moduleIndex: moduleIdx,
+            courseTitle: course.title,
+            count: batch.count
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Batch ${batch.batchNo} compiling failed.`);
+        }
+        const data = await response.json();
+        if (data.questions && Array.isArray(data.questions)) {
+          finalNewQuestions.push(...data.questions);
+        }
+      }
+
+      if (finalNewQuestions.length > 0) {
+        setQuestionsPool(prev => {
+          const existingOtherMod = prev.filter(q => q.moduleIndex !== moduleIdx);
+          const staticThisMod = prev.filter(q => q.moduleIndex === moduleIdx).slice(0, 10);
+          
+          const reindexed = finalNewQuestions.map((q, idx) => ({
+            ...q,
+            id: moduleIdx * 1000 + 11 + idx,
+            moduleIndex: moduleIdx,
+            courseName: course.title
+          }));
+
+          const updated = [...existingOtherMod, ...staticThisMod, ...reindexed];
+          localStorage.setItem("ethio_exit_prep_questions_pool", JSON.stringify(updated));
+          return updated;
+        });
+      }
+
+      setCompilingStatusMessage(prev => ({ ...prev, [moduleIdx]: "✓ Successfully compiled 50 Exam Questions!" }));
+    } catch (err: any) {
+      console.error(err);
+      setCompilingStatusMessage(prev => ({ ...prev, [moduleIdx]: `⚠️ Failed: ${err.message || "Network issue"}` }));
+    } finally {
+      setTimeout(() => {
+        setCompilingSubjectMap(prev => ({ ...prev, [moduleIdx]: false }));
+      }, 3000);
+    }
+  };
+
+  // --- HANDBOOK WORKSPACE STATES ---
+  const [isHandbookOpen, setIsHandbookOpen] = useState<boolean>(false);
+  const [readingModuleIdx, setReadingModuleIdx] = useState<number>(0);
+  const [readingChapterIdx, setReadingChapterIdx] = useState<number>(0);
+  const [handbookContent, setHandbookContent] = useState<string>("");
+  const [handbookSources, setHandbookSources] = useState<Array<{title: string, uri: string}>>([]);
+  const [isHandbookLoading, setIsHandbookLoading] = useState<boolean>(false);
+  const [handbookError, setHandbookError] = useState<string>("");
+
+  const loadHandbookChapter = async (moduleIndex: number, chapterIndex: number, chapterTitle: string) => {
+    const course = courseModules[moduleIndex];
+    const cacheKey = `ethio_handbook_cache_${moduleIndex}_${chapterIndex}`;
+    
+    setReadingModuleIdx(moduleIndex);
+    setReadingChapterIdx(chapterIndex);
+    setIsHandbookOpen(true);
+    setHandbookError("");
+
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed.content) {
+          setHandbookContent(parsed.content);
+          setHandbookSources(parsed.sources || []);
+          setIsHandbookLoading(false);
+          return;
+        }
+      } catch (e) {
+        // Fallback
+      }
+    }
+
+    setIsHandbookLoading(true);
+    setHandbookContent("");
+    setHandbookSources([]);
+
+    try {
+      const response = await fetch("/api/gemini/handbook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseTitle: course.title,
+          chapterIndex: chapterIndex,
+          chapterTitle: chapterTitle,
+          moduleIndex: moduleIndex
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("University study compiler service rejected the request. Please try again.");
+      }
+
+      const data = await response.json();
+      if (!data.content) {
+        throw new Error("Compilation system failed to produce text content.");
+      }
+
+      setHandbookContent(data.content);
+      setHandbookSources(data.sources || []);
+      
+      localStorage.setItem(cacheKey, JSON.stringify({
+        content: data.content,
+        sources: data.sources || []
+      }));
+    } catch (err: any) {
+      console.error(err);
+      setHandbookError(err.message || "A secure connection to the course syllabus could not be established.");
+    } finally {
+      setIsHandbookLoading(false);
+    }
+  };
+
   // --- STUDY SYSTEM STATE ---
   const [selectedModuleIdx, setSelectedModuleIdx] = useState<number>(0);
   const [activeConceptIdx, setActiveConceptIdx] = useState<number>(0);
@@ -75,8 +235,8 @@ export default function App() {
 
   // Filtered list of questions for practice
   const filteredPracticeQuestions = practiceModuleFilter === null
-    ? mockQuestions
-    : mockQuestions.filter(q => q.moduleIndex === practiceModuleFilter);
+    ? questionsPool
+    : questionsPool.filter(q => q.moduleIndex === practiceModuleFilter);
 
   // --- EXAM SIMULATOR STATE ---
   const [isExamRunning, setIsExamRunning] = useState<boolean>(false);
@@ -186,14 +346,11 @@ export default function App() {
     setShowPracticeExplanation(prev => ({ ...prev, [questionId]: true }));
 
     // Increment overall statistics
-    const question = mockQuestions.find(q => q.id === questionId);
+    const question = questionsPool.find(q => q.id === questionId);
     if (question) {
       const isCorrect = optionIndex === question.correctOptionIndex;
       setProgress(prev => {
-        // Calculate new high score for this module
         const modIdx = question.moduleIndex;
-        // Total questions attempted for this module in active practice
-        // Let's add stats support
         const currentScore = prev.scoresPerModule[modIdx] || 0;
         const newScore = isCorrect ? Math.min(10, currentScore + 1) : currentScore;
         
@@ -218,10 +375,21 @@ export default function App() {
   };
 
   const startExamSimulation = () => {
-    // Shuffle or copy mockQuestions. To ensure a highly stable and structured 100-question matrix, 
-    // we use the full 100 questions aligned exactly with modules 0-9.
-    const questions = [...mockQuestions];
-    setExamQuestions(questions);
+    // Shuffling and choosing exactly 10 questions from each of the 10 modules from our questionsPool
+    const selected: Question[] = [];
+    for (let m = 0; m < 10; m++) {
+      const modQuestions = questionsPool.filter(q => q.moduleIndex === m);
+      const shuffled = [...modQuestions].sort(() => 0.5 - Math.random());
+      const taken = shuffled.slice(0, 10);
+      selected.push(...taken);
+    }
+    // If we have fewer than 100 questions (e.g. some subjects are not compiled yet), fill up with whatever we have
+    if (selected.length < 100) {
+      const remaining = questionsPool.filter(q => !selected.find(sq => sq.id === q.id));
+      const needed = 100 - selected.length;
+      selected.push(...remaining.sort(() => 0.5 - Math.random()).slice(0, needed));
+    }
+    setExamQuestions(selected.slice(0, 100));
     setExamAnswers({});
     setExamBookmarks([]);
     setExamCurrentIdx(0);
@@ -572,7 +740,7 @@ export default function App() {
                   </div>
                   <span className="text-3xl font-extrabold animate-pulse">:</span>
                   <div>
-                    <span className="text-4xl font-extrabold text-[#121212]">{examCountdownMinutes}</span>
+                    <span className="text-4xl font-extrabold text-[#121212] font-mono">{examCountdownMinutes}</span>
                     <span className="text-[10px] uppercase block opacity-60">Mins</span>
                   </div>
                 </div>
@@ -580,6 +748,27 @@ export default function App() {
                   ⚡ HIGH ALERT - REVISE NOW
                 </div>
               </div>
+            </div>
+
+            {/* Academic Compiler Notification Banner */}
+            <div className="bg-amber-50 border-2 border-amber-400 p-5 rounded-lg shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex gap-3">
+                <Sparkles className="w-5.5 h-5.5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-serif font-bold text-sm text-amber-950">
+                    Syllabus Auto-Compilers Enabled!
+                  </h4>
+                  <p className="text-xs text-amber-800 leading-relaxed max-w-3xl">
+                    You can now expand all course question banks to **50 customized expert MCQs** (bringing your matrix to 500 total questions!) and unlock continuous, scholastic **15-20 page Textbook modules** on the <strong>Study</strong> tab. This covers direct proclamation analysis (Broadcast Act 562, Hate Speech Act 1185), historic Ethiopia press landscapes, Gadaa forums, and advanced communications theories!
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveTab("study")}
+                className="bg-[#121212] hover:bg-black text-[#E6FF00] font-mono text-[11px] font-bold uppercase tracking-wider px-3.5 py-1.5 border border-black rounded shadow shrink-0 self-start sm:self-center hover:cursor-pointer transition-colors"
+              >
+                📖 Open study console
+              </button>
             </div>
 
             {/* Candidate Stat Cards (Bento style) */}
@@ -791,27 +980,39 @@ export default function App() {
               <span className="text-[10px] uppercase tracking-widest font-bold text-red-650 block">MODULAR SYLLABUS DIRECTORY</span>
               
               <div className="space-y-2 max-h-[640px] overflow-y-auto pr-2">
-                {courseModules.map((mod, idx) => (
-                  <button
-                    key={mod.id}
-                    onClick={() => {
-                      setSelectedModuleIdx(idx);
-                      setActiveConceptIdx(0);
-                    }}
-                    className={`w-full text-left p-3 border transition-all rounded duration-150 flex items-start gap-2.5 ${
-                      selectedModuleIdx === idx
-                        ? "bg-[#121212] text-[#FAF9F6] border-[#121212] shadow-sm font-bold"
-                        : "bg-white text-[#121212] border-gray-200 hover:border-black"
-                    }`}
-                  >
-                    <span className="font-mono text-[10px] bg-sky-100 text-sky-900 border border-sky-200 rounded-sm w-5 h-5 flex items-center justify-center shrink-0">
-                      {idx + 1}
-                    </span>
-                    <span className="text-xs md:text-sm tracking-tight leading-tight block">
-                      {mod.title}
-                    </span>
-                  </button>
-                ))}
+                {courseModules.map((mod, idx) => {
+                  const qCount = questionsPool.filter(q => q.moduleIndex === idx).length;
+                  return (
+                    <button
+                      key={mod.id}
+                      onClick={() => {
+                        setSelectedModuleIdx(idx);
+                        setActiveConceptIdx(0);
+                      }}
+                      className={`w-full text-left p-3 border transition-all rounded duration-150 flex items-start justify-between gap-1.5 ${
+                        selectedModuleIdx === idx
+                          ? "bg-[#121212] text-[#FAF9F6] border-[#121212] shadow-sm font-bold"
+                          : "bg-white text-[#121212] border-gray-200 hover:border-black"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="font-mono text-[10px] bg-sky-100 text-sky-900 border border-sky-200 rounded-sm w-5 h-5 flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="text-xs tracking-tight leading-tight block font-semibold">
+                          {mod.title}
+                        </span>
+                      </div>
+                      <span className={`text-[9px] font-mono shrink-0 px-1.5 py-0.5 rounded border ${
+                        qCount >= 50
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-300 font-bold"
+                          : "bg-amber-50 text-amber-800 border-amber-200"
+                      }`}>
+                        {qCount}/50 Qs
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Progress Panel details */}
@@ -859,6 +1060,24 @@ export default function App() {
                     className="px-4.5 py-1.5 bg-[#121212] text-[#E6FF00] text-xs font-mono uppercase tracking-wider font-extrabold border border-black hover:bg-[#E6FF00] hover:text-black transition-colors rounded-sm shadow-sm"
                   >
                     📖 Test Course MCQs
+                  </button>
+
+                  <button
+                    disabled={compilingSubjectMap[selectedModuleIdx]}
+                    onClick={() => compileSubjectPool(selectedModuleIdx)}
+                    className={`px-4.5 py-1.5 text-xs font-mono uppercase tracking-wider transition-all rounded font-extrabold border shrink-0 ${
+                      questionsPool.filter(q => q.moduleIndex === selectedModuleIdx).length >= 50
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200"
+                        : compilingSubjectMap[selectedModuleIdx]
+                        ? "bg-amber-100 text-amber-800 border-amber-300 animate-pulse cursor-not-allowed"
+                        : "bg-[#E6FF00] text-black border-black hover:bg-black hover:text-[#E6FF00]"
+                    }`}
+                  >
+                    {compilingSubjectMap[selectedModuleIdx]
+                      ? `⚡ ${compilingStatusMessage[selectedModuleIdx] || "Compiling..."}`
+                      : questionsPool.filter(q => q.moduleIndex === selectedModuleIdx).length >= 50
+                      ? "✓ Pool Has 50 MCQs"
+                      : "⚡ Compile 50 MCQ Pool"}
                   </button>
 
                   <button
@@ -1174,8 +1393,346 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* --- ETHIOPIA NATIONAL SYLLABUS ACADEMIC TEXTBOOK DIRECTORY --- */}
+                <div className="bg-[#FAF9F6] border-2 border-black p-6 rounded shadow-[4px_4px_0px_#121212] flex flex-col gap-4 mt-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-black pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <BookOpenText className="w-6 h-6 text-black" />
+                      <div>
+                        <h4 className="font-serif font-black italic text-lg leading-tight text-gray-950">
+                          Syllabus Textbook Channels (15-20 Pages Equivalent)
+                        </h4>
+                        <p className="text-[11px] text-gray-650">
+                          Highly detailed academic handbooks covering national regulatory acts, communication research theories, and local case studies.
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-mono text-[9px] bg-[#121212] text-[#E6FF00] px-2 py-1 font-bold uppercase tracking-wider rounded-sm shrink-0">
+                      📖 3 CHAPTER SERIES PER COURSE
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {(courseChapters[selectedModuleIdx] || []).map((chapter, chIdx) => {
+                      const isCached = localStorage.getItem(`ethio_handbook_cache_${selectedModuleIdx}_${chIdx}`) !== null;
+                      return (
+                        <div 
+                          key={chIdx}
+                          className="bg-white border border-gray-300 hover:border-black p-4.5 rounded flex flex-col justify-between hover:translate-y-[-2px] transition-all duration-150"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[9px] font-mono font-bold text-gray-400 uppercase">
+                                CHAPTER {chIdx + 1} OF 3
+                              </span>
+                              {isCached && (
+                                <span className="text-[9px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 border border-emerald-100 rounded">
+                                  COMPILED
+                                </span>
+                              )}
+                            </div>
+                            <h5 className="font-serif font-bold text-sm text-gray-950 leading-snug mb-1.5">
+                              {chapter.title}
+                            </h5>
+                            <p className="text-[11px] text-gray-500 leading-relaxed mb-4">
+                              {chapter.syllabusGoals}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => loadHandbookChapter(selectedModuleIdx, chIdx, chapter.title)}
+                            className={`w-full py-2 hover:cursor-pointer text-center text-xs font-mono font-bold uppercase tracking-wide border rounded transition-all ${
+                              isCached
+                                ? "bg-emerald-50 text-emerald-850 border-emerald-300 hover:bg-emerald-150"
+                                : "bg-[#121212] text-[#E6FF00] border-black hover:bg-black"
+                            }`}
+                          >
+                            {isCached ? "📖 Read Academic Chapter" : "⚡ Live-Compile Chapter"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
             </section>
+          </div>
+        )}
+
+        {/* --- 2B. IMMERSIVE ACADEMIC TEXTBOOK WORKSPACE OVERLAY --- */}
+        {isHandbookOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-5 animate-fade-in">
+            <div className="bg-white border-4 border-black w-full max-w-6xl h-[92vh] flex flex-col shadow-[8px_8px_0px_#121212] overflow-hidden">
+              
+              {/* Header bar */}
+              <header className="bg-black text-[#FAF9F6] px-5 py-3.5 flex items-center justify-between border-b-2 border-black shrink-0 font-mono">
+                <div className="flex items-center gap-3">
+                  <div className="bg-[#E6FF00] text-black text-xs font-black w-6.5 h-6.5 rounded flex items-center justify-center border border-black shrink-0 animate-bounce">
+                    M{readingModuleIdx + 1}
+                  </div>
+                  <div className="overflow-hidden">
+                    <span className="text-[10px] text-gray-400 font-bold block uppercase tracking-widest leading-none">
+                      {courseModules[readingModuleIdx].title}
+                    </span>
+                    <h4 className="text-xs sm:text-sm font-bold text-[#E6FF50] truncate">
+                      Chapter {readingChapterIdx + 1}: {(courseChapters[readingModuleIdx] || [])[readingChapterIdx]?.title}
+                    </h4>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      if (handbookContent) {
+                        navigator.clipboard.writeText(handbookContent);
+                        alert("Academic text copied to clipboard successfully!");
+                      }
+                    }}
+                    className="p-1.5 hover:bg-gray-800 rounded text-gray-300 hover:text-white text-xs mr-2 transition-colors hidden sm:inline-block"
+                    title="Copy Full Chapter to Clipboard"
+                  >
+                    📋 Copy Text
+                  </button>
+                  <button
+                    onClick={() => setIsHandbookOpen(false)}
+                    className="bg-red-600 hover:bg-red-700 text-white border border-red-800 rounded px-3 py-1 text-xs uppercase font-extrabold transition-colors hover:cursor-pointer"
+                  >
+                    ✕ Close Book
+                  </button>
+                </div>
+              </header>
+
+              {/* Central Splitted Workspace */}
+              <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+                
+                {/* Left Side: Dense Editorial Textbook Paper Card */}
+                <main className="lg:col-span-8 overflow-y-auto bg-[#FDFBF7] p-5 sm:p-8 flex flex-col gap-6 relative border-r-2 border-black">
+                  
+                  {isHandbookLoading ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center py-20 text-center gap-4">
+                      <div className="relative w-16 h-16">
+                        <div className="absolute inset-0 border-4 border-black border-t-[#E6FF00] rounded-full animate-spin"></div>
+                        <Layers className="w-6 h-6 text-black absolute inset-0 m-auto animate-pulse" />
+                      </div>
+                      <div>
+                        <span className="font-mono text-xs uppercase font-bold text-red-650 tracking-widest animate-pulse block">
+                          AAU ACADEMIC GRAPHICS TYPESETTER ACTIVE
+                        </span>
+                        <h4 className="font-serif font-black text-xl text-black my-1">
+                          Drafting 1,500 - 2,500 Word Syllabus Chapter...
+                        </h4>
+                        <p className="text-xs text-gray-500 max-w-md mx-auto leading-relaxed mt-2 bg-yellow-50 p-3 border border-yellow-200 rounded">
+                          Please wait. This compiles deep literature definitions, actual Media Proclamations (Hate Speech Act 1185, Broadcast Act 562), Oromo Gadaa consensus modules, the Gadae, and specific exit-examination critiques.
+                        </p>
+                      </div>
+                    </div>
+                  ) : handbookError ? (
+                    <div className="w-full text-center py-20 px-4">
+                      <AlertTriangle className="w-12 h-12 text-red-600 mx-auto mb-3" />
+                      <h4 className="font-serif font-bold text-lg text-red-950">Curriculum Connection Error</h4>
+                      <p className="text-xs text-gray-600 max-w-sm mx-auto mt-1 mb-4">{handbookError}</p>
+                      <button 
+                        onClick={() => loadHandbookChapter(readingModuleIdx, readingChapterIdx, (courseChapters[readingModuleIdx] || [])[readingChapterIdx]?.title)}
+                        className="px-4 py-2 bg-black text-white hover:bg-gray-800 text-xs font-mono uppercase"
+                      >
+                        🔄 Retry Compilation
+                      </button>
+                    </div>
+                  ) : (
+                    <article className="prose max-w-none text-left select-text">
+                      <div className="border-b-4 border-black pb-4 mb-6">
+                        <span className="text-[10px] uppercase tracking-wider font-mono font-black text-[#121212] bg-[#E6FF00] px-2 py-0.5 inline-block rounded border border-black mb-1.5">
+                          OFFICIAL CERTIFIED SYLLABUS COMPANION
+                        </span>
+                        <h1 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-gray-900 leading-tight">
+                          Chapter {readingChapterIdx + 1}: {(courseChapters[readingModuleIdx] || [])[readingChapterIdx]?.title}
+                        </h1>
+                        <div className="flex flex-wrap gap-4 mt-2.5 text-[11px] font-mono text-gray-500">
+                          <span>Volume: XI (Ethiopian Civil Academy)</span>
+                          <span>•</span>
+                          <span>Length: ~{Math.round(handbookContent.split(" ").length)} academic words</span>
+                          <span>•</span>
+                          <span>Reading Status: Active</span>
+                        </div>
+                      </div>
+
+                      {/* Render custom styled markdown paragraphs */}
+                      <div className="space-y-4">
+                        {(() => {
+                          const lines = handbookContent.split("\n");
+                          return lines.map((line, idx) => {
+                            const trimmed = line.trim();
+                            if (!trimmed) return <div key={idx} className="h-4" />;
+                            
+                            // Markdown headers
+                            if (trimmed.startsWith("### ")) {
+                              return <h4 key={idx} className="text-base sm:text-lg font-serif font-bold text-gray-950 mt-6 mb-2 border-l-2 border-black pl-2">{trimmed.slice(4)}</h4>;
+                            }
+                            if (trimmed.startsWith("## ")) {
+                              return <h3 key={idx} className="text-lg sm:text-xl font-serif font-black text-gray-950 mt-8 mb-3 border-b-2 border-black pb-1.5">{trimmed.slice(3)}</h3>;
+                            }
+                            if (trimmed.startsWith("# ")) {
+                              return <h2 key={idx} className="text-xl sm:text-2xl font-serif font-black text-gray-950 mt-10 mb-4 tracking-tight leading-tight">{trimmed.slice(2)}</h2>;
+                            }
+                            
+                            // Blockquotes
+                            if (trimmed.startsWith("> ")) {
+                              return (
+                                <blockquote key={idx} className="border-l-4 border-black pl-4 italic text-gray-700 bg-gray-50 p-3 my-3 text-[12.5px] rounded-r border-r border-y border-gray-200">
+                                  {trimmed.slice(2)}
+                                </blockquote>
+                              );
+                            }
+                            
+                            // Bulleted Lists
+                            if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+                              return (
+                                <div key={idx} className="flex gap-2 text-xs sm:text-[13px] text-gray-700 leading-relaxed pl-4 my-1.5 align-top">
+                                  <span className="text-black font-mono font-black mt-0.5">•</span>
+                                  <span>{trimmed.slice(2)}</span>
+                                </div>
+                              );
+                            }
+                            
+                            // Numbered lists
+                            if (/^\d+\.\s/.test(trimmed)) {
+                              const match = trimmed.match(/^(\d+)\.\s(.*)/);
+                              if (match) {
+                                return (
+                                  <div key={idx} className="flex gap-2 text-xs sm:text-[13px] text-gray-700 leading-relaxed pl-4 my-1.5 align-top">
+                                    <span className="font-mono text-[10px] bg-[#121212] text-[#E6FF00] rounded px-1 shrink-0 font-bold h-4 flex items-center">{match[1]}</span>
+                                    <span>{match[2]}</span>
+                                  </div>
+                                );
+                              }
+                            }
+                            
+                            // Normal paragraph
+                            return (
+                              <p key={idx} className="text-xs sm:text-[13.5px] text-gray-800 leading-relaxed text-justify font-serif mb-3">
+                                {trimmed}
+                              </p>
+                            );
+                          });
+                        })()}
+                      </div>
+
+                      {/* Sources block */}
+                      {handbookSources.length > 0 && (
+                        <div className="border-t-2 border-black pt-5 mt-8 bg-gray-50 p-4 border border-gray-200 rounded">
+                          <span className="text-[10px] uppercase font-mono tracking-wider text-gray-500 font-bold block mb-2.5">
+                            ACADEMIC REFERENCE REPOSITORY & LINKED GROUNDING
+                          </span>
+                          <div className="space-y-2">
+                            {handbookSources.map((source, sIdx) => (
+                              <div key={sIdx} className="text-xs flex items-center gap-1.5 text-gray-700">
+                                <span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-1.5 py-0.2 rounded shrink-0">
+                                  [{sIdx + 1}]
+                                </span>
+                                <a 
+                                  href={source.uri} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className="underline text-blue-700 hover:text-blue-900 break-all leading-snug"
+                                >
+                                  {source.title}
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  )}
+                </main>
+
+                {/* Right Side: Scholar Desk Quick-Link Workspace (Syllabus Specs, AI tutor integration) */}
+                <aside className="lg:col-span-4 bg-[#FAF9F6] p-5 flex flex-col justify-between overflow-y-auto">
+                  <div className="flex flex-col gap-5">
+                    
+                    {/* Syllabus Goals checklist */}
+                    <div className="bg-white border border-black p-4 rounded shadow-sm">
+                      <span className="text-[10px] font-mono uppercase text-gray-400 font-bold block mb-2">
+                        MoE Syllabus Specifications Checklist
+                      </span>
+                      <h5 className="font-serif font-bold text-sm text-gray-900 border-b pb-1 mb-2">
+                        Target Concept Matrix for Exit Exams
+                      </h5>
+                      <ul className="space-y-2 text-xs text-gray-750">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                          <span>Strict Proclamation parameters (Pr. 562/2007) details verified.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                          <span>Hate Speech Act 1185/2020 legal constraints grounded.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                          <span>Oromo Gadaa consensus & participatory dialogue mechanisms integrated.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                          <span>Two-Step Mass communication Flow networks analyzed.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                          <span>Ethical decision-modeling (The Potter Box blueprint) validated.</span>
+                        </li>
+                      </ul>
+                      
+                      <div className="mt-4 bg-emerald-50 border border-emerald-250 p-2.5 rounded text-[11px] leading-snug text-emerald-900 flex gap-2">
+                        <span className="font-bold text-base mt-[-2px]">✓</span>
+                        <span>This syllabus chapter represents approximately 15-20 textbook pages of official scholarship material. Highlighted structures are common sources of previous exit exams.</span>
+                      </div>
+                    </div>
+
+                    {/* AI Advisor Dispatch Card */}
+                    <div className="bg-white border-2 border-black p-4 rounded-lg shadow-sm">
+                      <div className="flex items-center gap-2 mb-2">
+                        <GraduationCap className="w-5 h-5 text-black" />
+                        <h5 className="font-serif font-black italic text-sm">Berhanu Consulting Desk</h5>
+                      </div>
+                      <p className="text-[11px] text-gray-650 leading-relaxed mb-3">
+                        Confused about any communication theory, legal redline, or case study presented in this chapter? Click below to instantly invoke Professor Berhanu and launch a custom clarification session based on this text!
+                      </p>
+                      
+                      <button
+                        onClick={() => {
+                          const snippet = `I am currently studying Chapter ${readingChapterIdx + 1} ("${(courseChapters[readingModuleIdx] || [])[readingChapterIdx]?.title}") from the Course Module "${courseModules[readingModuleIdx].title}". Can you explain the core concepts of this chapter, detail any historical Ethiopian context, and give me a quick 3-question conceptual drill on this specific reading?`;
+                          setTutorInput(snippet);
+                          setIsHandbookOpen(false);
+                          setActiveTab("professor_desk");
+                        }}
+                        className="w-full py-2 bg-black text-[#E6FF00] hover:bg-[#E6FF00] hover:text-black transition-colors rounded text-xs font-mono font-bold uppercase tracking-wide border border-black hover:cursor-pointer"
+                      >
+                        💬 Ask Professor About This
+                      </button>
+                    </div>
+
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-300 mt-6 flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        handleStudyModuleComplete(courseModules[readingModuleIdx].id);
+                        setIsHandbookOpen(false);
+                      }}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-mono text-xs uppercase tracking-wider font-extrabold shadow border border-emerald-800 transition-colors hover:cursor-pointer"
+                    >
+                      ✓ I Have Finished Studying Chapter
+                    </button>
+                    <p className="text-center text-[10px] text-gray-400">
+                      Marking complete advances your modular syllabus study ratio.
+                    </p>
+                  </div>
+                </aside>
+
+              </div>
+              
+            </div>
           </div>
         )}
 
