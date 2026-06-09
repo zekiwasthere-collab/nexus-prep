@@ -1,0 +1,6 @@
+{
+  "name": "Ethiopian Exit Exam Prep",
+  "description": "An interactive national exit exam preparation helper for Ethiopian Higher Education students in Journalism and Communication. It includes 100 blueprint-aligned practice questions, study modules, real-time analytics, and a realistic exam countdown timer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
