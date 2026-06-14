@@ -1,6 +1,4 @@
-import { CourseModule } from "./types";
-
-export const courseModules: CourseModule[] = [
+window.courseModules = [
   {
     index: 0,
     id: "dev_journalism",

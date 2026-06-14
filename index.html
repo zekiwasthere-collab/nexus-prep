@@ -1,13 +1,460 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ethiopian Journalism Exit Exam Prep | MOE Blueprint</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Competency Exit Exam Prep - Journalism & Communication</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
 
+  <div class="app-container" id="app">
+    <!-- Header Navbar -->
+    <header class="navbar">
+      <div class="max-width-wrapper navbar-inner">
+        <a href="#" class="brand">
+          <span class="brand-badge" id="env-badge">OFFLINE READY</span>
+          <span class="brand-title">Exit Exam Competency Hub</span>
+        </a>
+        <div class="font-mono text-xs text-indigo-600 font-bold" id="platform-key-indicator" style="display-none;">
+          ★ Journalism & Communication
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Bar for Active Views -->
+    <div class="max-width-wrapper" style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+      <nav class="tab-navbar">
+        <button class="tab-btn active" id="btn-tab-modules" onclick="switchTab('modules')">
+          📁 Curriculum Modules
+        </button>
+        <button class="tab-btn" id="btn-tab-textbook" onclick="switchTab('textbook')">
+          📖 Study Textbook
+        </button>
+        <button class="tab-btn" id="btn-tab-simulator" onclick="switchTab('simulator')">
+          ⏱️ Exam Simulator
+        </button>
+        <button class="tab-btn" id="btn-tab-journal" onclick="switchTab('journal')">
+          📝 Study Journal
+        </button>
+        <button class="tab-btn" id="btn-tab-advisor" onclick="switchTab('advisor')">
+          👨‍🏫 Professor Berhanu
+        </button>
+      </nav>
+    </div>
+
+    <!-- MAIN INTERACTIVE CONTAINER -->
+    <main class="max-width-wrapper" style="flex-grow: 1;">
+      
+      <!-- =============================================
+           VIEW 1: CURRICULUM MODULES
+           ============================================= -->
+      <section id="view-modules" class="tab-content">
+        <div class="grid-main">
+          <!-- Sidebar: Module Choice list -->
+          <div class="sidebar-card">
+            <h3 class="mb-4">Core Modules</h3>
+            <div id="module-sidebar-list">
+              <!-- Rendered programmatically -->
+            </div>
+          </div>
+
+          <!-- Main workspace: selected module content -->
+          <div>
+            <div class="neobrutal-card">
+              <div class="neobrutal-card-header" style="background-color: var(--color-primary-light);">
+                <div>
+                  <span class="font-mono text-xs text-amber-700" id="mod-unit-badge">UNIT 1</span>
+                  <h2 id="mod-title">Module Title</h2>
+                </div>
+              </div>
+              <div class="neobrutal-card-body">
+                <p class="mb-6 text-subtle" id="mod-description" style="font-size: 1.05rem;">Module description goes here.</p>
+                
+                <h3 class="mb-4 font-display">Competency Learning Objectives</h3>
+                <div class="objectives-grid" id="mod-objectives">
+                  <!-- Rendered via program -->
+                </div>
+                
+                <!-- Inner sub-activities: Flashcards or Practice Qs -->
+                <div style="border-top: 2px solid var(--color-dark); margin-top: 2rem; padding-top: 1.5rem;">
+                  <div class="flex justify-between align-center mb-6">
+                    <h3 class="font-display">Module Study Tools</h3>
+                    <div style="display: flex; gap: 0.5rem;">
+                      <button class="neobrutal-btn neobrutal-btn-sm neobrutal-btn-warning" id="subtab-btn-flashcards" onclick="setModuleTool('flashcards')">🃏 Flashcards</button>
+                      <button class="neobrutal-btn neobrutal-btn-sm neobrutal-btn-secondary" id="subtab-btn-practice" onclick="setModuleTool('practice')">📝 Practice MCQs</button>
+                    </div>
+                  </div>
+
+                  <!-- SUBTOOL: FLASHCARDS -->
+                  <div id="subview-flashcards">
+                    <p class="text-subtle text-center mb-4">Click the card to flip it and reveal the definitions, bullet facts, and key concepts.</p>
+                    <div class="flashcards-container">
+                      <div class="flashcard" onclick="flipFlashcard()">
+                        <div class="flashcard-inner" id="flashcard-element">
+                          <div class="flashcard-front">
+                            <span class="brand-badge mb-4">KEY TERM</span>
+                            <h2 id="card-term" style="font-size: 1.75rem;">Concept Term</h2>
+                            <p style="font-size: 0.8rem; margin-top: 2rem; color: var(--color-subtle); font-style: italic;">(Tap card to reveal critical definition)</p>
+                          </div>
+                          <div class="flashcard-back">
+                            <span class="brand-badge mb-4" style="background-color: var(--color-secondary);">DEFINITION</span>
+                            <p class="mb-6 bold" id="card-definition">Concept definition text is placed here.</p>
+                            <div style="text-align: left; width: 100%; border-top: 1.5px solid var(--color-dark); padding-top: 1rem;">
+                              <p class="bold mb-2 text-xs font-mono">CORE APPLIED DETAILS:</p>
+                              <ul style="padding-left: 1.25rem; font-size: 0.9rem;" id="card-bullets">
+                                <!-- Bullet points -->
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="flex justify-between align-center" style="max-width: 450px; margin: 0 auto;">
+                      <button class="neobrutal-btn" onclick="prevCard()">&larr; Prev</button>
+                      <span class="font-mono text-sm bold" id="card-progress-text">1 / 3 Concepts</span>
+                      <button class="neobrutal-btn" onclick="nextCard()">Next &rarr;</button>
+                    </div>
+                  </div>
+
+                  <!-- SUBTOOL: PRACTICE PRACTICE -->
+                  <div id="subview-practice" class="hidden">
+                    <div class="flex justify-between align-center mb-4" style="background: #fafafa; padding: 0.5rem; border: 1.5px solid var(--color-border);">
+                      <span class="font-mono text-sm bold">Practicing Core MCQs for Selected Subject</span>
+                      <span class="brand-badge" id="module-score-pill" style="background-color: var(--color-success);">Score: 0/10</span>
+                    </div>
+
+                    <div class="question-block">
+                      <div class="question-text" id="prac-q-text">Select a practice question...</div>
+                      <div class="options-list" id="prac-options-container">
+                        <!-- Options generated -->
+                      </div>
+                    </div>
+
+                    <div class="explanation-panel hidden" id="prac-explanation-box">
+                      <p class="bold mb-1 font-display" style="color: var(--color-secondary);">👨‍🏫 Tutor Explanation:</p>
+                      <p id="prac-explanation-text">Explanation goes here.</p>
+                    </div>
+
+                    <div class="flex justify-between align-center mt-6">
+                      <button class="neobrutal-btn neobrutal-btn-secondary" id="prac-prev-btn" onclick="prevPracticeQuestion()">&larr; Previous Question</button>
+                      <button class="neobrutal-btn neobrutal-btn-primary" id="prac-next-btn" onclick="nextPracticeQuestion()">Next Question &rarr;</button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+            
+            <div class="neobrutal-card bg-white">
+              <div class="neobrutal-card-body flex align-center gap-4">
+                <span style="font-size: 2.25rem;">📜</span>
+                <div>
+                  <h4 class="font-display">Ethiopian Higher Education Competency Focus</h4>
+                  <p class="text-sm text-subtle">These curriculum structures and custom testing pools are aligned precisely with the Ministry of Education exit directions for mass communication, ethics, public opinion, developmental media, and translation.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================================
+           VIEW 2: STUDY TEXTBOOK
+           ============================================= -->
+      <section id="view-textbook" class="tab-content hidden">
+        <div class="grid-main">
+          <!-- Left Accordion list of textbook files -->
+          <div class="sidebar-card">
+            <h3 class="mb-4">Textbook Library</h3>
+            <p class="text-xs text-subtle mb-4">Read robust editorial textbooks for all 10 subjects offline.</p>
+            <div id="textbook-sidebar-modules-list">
+              <!-- Dynamic Modules dropdown/accordions -->
+            </div>
+          </div>
+
+          <!-- Active Chapter viewport -->
+          <div class="neobrutal-card">
+            <div class="neobrutal-card-header" style="background-color: var(--color-secondary-light);">
+              <div>
+                <span class="font-mono text-xs text-teal-800" id="tb-chapter-count">CHAPTER</span>
+                <h2 id="tb-chapter-title">Textbook Chapter Selection</h2>
+              </div>
+            </div>
+            <div class="neobrutal-card-body textbook-render font-mono" style="background-color: #fafbf9; padding: 2rem;">
+              <div id="tb-chapter-content-box" style="font-family: inherit; line-height: 1.7; font-size: 0.95rem;">
+                <p class="text-center text-subtle my-6" style="font-size: 1.15rem; font-family: var(--font-sans);">
+                  ◀ Select any syllabus chapter from the sidebar library to begin reading.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================================
+           VIEW 3: COUNTDOWN EXAM SIMULATOR
+           ============================================= -->
+      <section id="view-simulator" class="tab-content hidden">
+        <!-- Status Panel -->
+        <div class="simulation-bar" id="sim-status-indicator">
+          <div class="sim-stat-box">
+            <span class="sim-stat-label">Active Simulator State</span>
+            <span class="sim-stat-val text-primary" id="sim-state-text">Ready to Begin</span>
+          </div>
+          <div class="sim-stat-box">
+            <span class="sim-stat-label">Time Remaining</span>
+            <span class="sim-stat-val font-mono" id="sim-timer-val">120:00</span>
+          </div>
+          <div class="sim-stat-box">
+            <span class="sim-stat-label">Questions Checked</span>
+            <span class="sim-stat-val" id="sim-completion-val">0 / 100</span>
+          </div>
+          <div class="sim-stat-box">
+            <span class="sim-stat-label">Flagged/Bookmarked</span>
+            <span class="sim-stat-val text-warning" id="sim-flags-count">0</span>
+          </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div class="neobrutal-card text-center" id="sim-start-panel" style="max-width: 650px; margin: 3rem auto; padding: 2rem;">
+          <span style="font-size: 3rem;">⏱️</span>
+          <h2 class="mb-4">National Exit Exam Simulator</h2>
+          <p class="mb-6 text-subtle">
+            Simulate the final rigorous National Exit Competency Exam under authentic constraints. 
+            This dynamically compiles exactly **100 randomized questions** (10 per syllabus module) 
+            from our active 500-question pool. Option positions are randomized dynamically to ensure high accuracy.
+          </p>
+          <div style="background-color: #fffbfa; border: 2px solid var(--color-border); padding: 1.25rem; text-align: left;" class="mb-6">
+            <h4 class="mb-2">Exam Instructions & Constraints:</h4>
+            <ul style="padding-left: 1.5rem; font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <li><strong>Time Limits:</strong> exactly 120 minutes (2 Hours). The timer counts down with automatic submission upon zero.</li>
+              <li><strong>Competency Standards:</strong> You require a minimum of <strong>50% (50/100)</strong> to pass the competency metric.</li>
+              <li><strong>Navigation:</strong> Use the direct numbered grid to flag, jump, or complete questions chronologically.</li>
+              <li><strong>Grade Reviews:</strong> A comprehensive grade breakdown with tutor explanations was yielded after submitting.</li>
+            </ul>
+          </div>
+          <button class="neobrutal-btn neobrutal-btn-primary w-full" onclick="startSimulatedExam()">
+            🚀 Start 100-Question Exam
+          </button>
+        </div>
+
+        <!-- Live Exam Board -->
+        <div id="sim-exam-board" class="hidden">
+          <div class="grid-main">
+            <!-- Left Grid Selector -->
+            <div class="sidebar-card">
+              <h4 class="mb-2 font-display">Navigation Grid</h4>
+              <p class="text-xs text-subtle mb-4">Click any box to inspect. Yellow indicates Flagged/Bookmarked, Gray indicates Answered.</p>
+              
+              <div class="q-grid-nav" id="sim-grid-nav-container">
+                <!-- 100 boxes will be generated dynamically -->
+              </div>
+
+              <div style="border-top: 1.5px solid var(--color-dark); margin-top: 1.5rem; padding-top: 1rem;">
+                <button class="neobrutal-btn neobrutal-btn-secondary w-full mb-4" onclick="toggleBookmarkSimQuestion()">
+                  🚩 Bookmark/Flag Question
+                </button>
+                <button class="neobrutal-btn neobrutal-btn-primary w-full" style="background-color: var(--color-danger);" onclick="promptSubmitSimExam()">
+                  🔒 Complete & Submit Exam
+                </button>
+              </div>
+            </div>
+
+            <!-- Right Active MCQ workspace -->
+            <div class="neobrutal-card">
+              <div class="neobrutal-card-header" style="background-color: var(--color-primary-light);">
+                <div>
+                  <span class="font-mono text-xs" id="sim-core-mod-label" style="text-transform: uppercase;">MODULE WEIGHT</span>
+                  <h3 id="sim-q-header">Question 1 of 100</h3>
+                </div>
+              </div>
+              <div class="neobrutal-card-body">
+                <div class="question-block">
+                  <div class="question-text" id="sim-q-text">Loading question content...</div>
+                  <div class="options-list" id="sim-options-container">
+                    <!-- Options -->
+                  </div>
+                </div>
+
+                <div class="flex justify-between align-center mt-6">
+                  <button class="neobrutal-btn" onclick="prevSimQuestion()">&larr; Previous</button>
+                  <span class="font-mono text-sm bold" id="sim-q-indicator-text">1 / 100</span>
+                  <button class="neobrutal-btn" onclick="nextSimQuestion()">Next &rarr;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grade Results Summary Panel -->
+        <div id="sim-results-panel" class="hidden">
+          <div class="neobrutal-card">
+            <div class="neobrutal-card-header text-center" id="sim-results-card-header" style="background-color: var(--color-success-light); flex-direction: column; padding: 2rem;">
+              <span id="sim-result-badge-icon" style="font-size: 3.5rem;">🏆</span>
+              <h1 id="sim-result-outcome-text" style="font-size: 2.25rem;">CONGRATULATIONS! YOU PASSED</h1>
+              <p class="text-subtle font-mono mt-2" id="sim-result-time-text">Time Elapsed: 45 Minutes 12 Seconds</p>
+            </div>
+            <div class="neobrutal-card-body" style="padding: 2.5rem;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;" class="mb-6 text-center">
+                <div style="border: 2px solid var(--color-dark); padding: 1rem; background-color: var(--color-canvas);">
+                  <p class="text-xs text-subtle uppercase">Your Competency Score</p>
+                  <p class="bold font-display text-primary" style="font-size: 2.5rem;" id="sim-results-score-percent">76%</p>
+                  <p class="text-xs font-mono mt-1" id="sim-results-raw-ratio">(76 out of 100 correct)</p>
+                </div>
+                <div style="border: 2px solid var(--color-dark); padding: 1rem; background-color: #fcfbf9;">
+                  <p class="text-xs text-subtle uppercase">National Standard Passing Line</p>
+                  <p class="bold font-display" style="font-size: 2.5rem; color: var(--color-dark);">50%</p>
+                  <p class="text-xs font-mono mt-1">(50 out of 100 required)</p>
+                </div>
+                <div style="border: 2px solid var(--color-dark); padding: 1rem; background-color: var(--color-canvas);" id="sim-results-status-box">
+                  <p class="text-xs text-subtle uppercase">Syllabus Credential Status</p>
+                  <p class="bold font-display text-success" style="font-size: 2.5rem;" id="sim-results-badge-status">COMPETENT</p>
+                  <p class="text-xs font-mono mt-1">Ready for licensing</p>
+                </div>
+              </div>
+
+              <div class="flex gap-4 mb-6">
+                <button class="neobrutal-btn neobrutal-btn-primary" onclick="restartSimulatorFull()">🚀 Try Another Exam Mode</button>
+                <a href="#sim-review-section" class="neobrutal-btn neobrutal-btn-secondary">🔍 Scroll/Review Mistakes</a>
+              </div>
+
+              <!-- Detailed Answers review section -->
+              <div id="sim-review-section" style="border-top: 3.2px solid var(--color-dark); margin-top: 2rem; padding-top: 2rem;">
+                <h3 class="mb-4">Comprehensive Mistake & Performance Review</h3>
+                <p class="text-subtle mb-6">Review every question from the simulated sitting below along with explanation notes for rapid self-remediation.</p>
+                
+                <div id="sim-review-scroller-container" style="display-none;">
+                  <!-- Dynamic answer review checklist -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- =============================================
+           VIEW 4: STUDENT JOURNAL & NOTEPAD
+           ============================================= -->
+      <section id="view-journal" class="tab-content hidden">
+        <div class="journal-layout">
+          <!-- Live list of saved files in storage -->
+          <div class="sidebar-card">
+            <h3 class="mb-4">My Diary Logs</h3>
+            <p class="text-xs text-subtle mb-4">Saved drafts reside securely in your browser's local store. Ready to access when offline.</p>
+            <div class="journal-saved-list" id="journal-saved-list">
+              <!-- Rendered programmatically -->
+            </div>
+            
+            <div style="margin-top: 2rem; border-top: 2px dashed var(--color-dark); padding-top: 1rem;">
+              <button class="neobrutal-btn w-full" onclick="createNewJournalFromScratch()">
+                ✍️ Write New Study Entry
+              </button>
+            </div>
+          </div>
+
+          <!-- Note drafting workspace -->
+          <div class="neobrutal-card">
+            <div class="neobrutal-card-header" style="background-color: var(--color-primary-light);">
+              <div>
+                <span class="font-mono text-xs text-amber-700" id="journal-date-tag font-mono">NEW REVISION SHEET</span>
+                <input type="text" id="journal-input-title" placeholder="Give this revision note a title..." style="width:100%; border:none; background:transparent; font-size:1.5rem; font-weight:700; outline:none; font-family:var(--font-display);">
+              </div>
+            </div>
+            <div class="neobrutal-card-body">
+              <!-- Fast snippets shortcuts -->
+              <div class="mb-4 flex gap-2 flex-wrap align-center">
+                <span class="text-xs font-mono bold text-subtle">revision templates:</span>
+                <button class="neobrutal-btn neobrutal-btn-sm" onclick="stampJournalTemplate('core')">💡 Core Formulas</button>
+                <button class="neobrutal-btn neobrutal-btn-sm" onclick="stampJournalTemplate('case')">🗺️ Case Study Summary</button>
+                <button class="neobrutal-btn neobrutal-btn-sm" onclick="stampJournalTemplate('log')">⏰ Practice Log</button>
+              </div>
+
+              <textarea class="note-editor-textarea mb-4" id="journal-input-body" placeholder="Start typing your study notes, daily schedules, flashcard reminders, or exam errors here..."></textarea>
+              
+              <div class="flex justify-between align-center">
+                <span class="text-xs font-mono text-subtle" id="journal-char-count">0 characters logged</span>
+                <div class="flex gap-2">
+                  <button class="neobrutal-btn neobrutal-btn-primary" onclick="saveActiveJournal()">
+                    💾 Save Draft Note
+                  </button>
+                  <button class="neobrutal-btn" style="background-color: var(--color-danger); color: white;" onclick="deleteActiveJournal()">
+                    🗑️ Delete Note
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================================
+           VIEW 5: ACADEMIC ADVISOR CHAT
+           ============================================= -->
+      <section id="view-advisor" class="tab-content hidden">
+        <div class="grid-main" style="grid-template-columns: 320px 1fr;">
+          <!-- Left side Professor Profile -->
+          <div class="sidebar-card text-center" style="padding: 1.5rem 1.25rem;">
+            <div style="background-color: var(--color-primary-light); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; border: 2px solid var(--color-primary);">
+              <span style="font-size: 2.75rem;">👨‍🏫</span>
+            </div>
+            <h3 class="mb-1">Professor Berhanu</h3>
+            <p class="font-mono text-xs text-subtle mb-4">Competency Counselor</p>
+            <p class="text-sm text-subtle text-left mb-4" style="line-height:1.6;">
+              "Greetings, scholar! I am your interactive academic advisor. Ask me anything about the Ethiopian exit curriculum or key journalism theories."
+            </p>
+            <div style="background-color: #f7f6f2; border: 2.2px solid var(--color-border); padding: 0.75rem; text-align: left; font-size: 0.82rem;">
+              <p class="bold mb-1 font-mono">Suggested Questions:</p>
+              <ul style="padding-left: 1.15rem; list-style-type: square; display: flex; flex-direction: column; gap: 0.35rem;">
+                <li><a href="#" style="color: var(--color-primary);" onclick="askProfessorPreset('What is the difference between Misinformation and Disinformation under Proclamation 1185/2020?')">Mis/Disinformation?</a></li>
+                <li><a href="#" style="color: var(--color-primary);" onclick="askProfessorPreset('Explain the Potter Box framework quadrants for media ethics analyses.')">The Potter Box quadrants?</a></li>
+                <li><a href="#" style="color: var(--color-primary);" onclick="askProfessorPreset('Detail the Gadaa system horizontal communication channels.')">Gadaa system?</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Active Chat viewport -->
+          <div class="chat-window">
+            <div class="chat-messages" id="advisor-messages-scroller">
+              <!-- Chat bubbles -->
+              <div class="bubble bubble-assistant">
+                <p class="chat-avatar">Professor Berhanu</p>
+                <p>Welcome! How can I assist you with your journalism and development communications studies today?</p>
+              </div>
+            </div>
+            
+            <div class="chat-input-bar">
+              <input type="text" class="chat-input" id="advisor-chat-input-field" placeholder="Ask Professor Berhanu a query about the syllabus..." onkeypress="handleAdvisorChatKeyPress(event)">
+              <button class="chat-submit-btn" id="advisor-chat-send-btn" onclick="sendAdvisorChatQuery()">
+                SUBMIT
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- SUBMIT SIMULATOR DIALOG -->
+  <div class="modal-overlay hidden" id="modal-submit-exam-prompt">
+    <div class="modal-content">
+      <h3 class="mb-2 font-display text-primary">Submit Simulated Exam?</h3>
+      <p class="mb-6 text-subtle" id="modal-submit-status-context">Are you sure you want to grade your paper? You have answered 0 out of 100 questions. Once submitted, your score will be logged in browser history files.</p>
+      <div class="flex justify-between">
+        <button class="neobrutal-btn" onclick="closeSubmitExamModal()">Return to Exam</button>
+        <button class="neobrutal-btn neobrutal-btn-primary" style="background-color: var(--color-danger);" onclick="confirmSubmitSimExam()">Yes, Grade My Sheet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOAD GLOBAL VARIABLES & LOGIC CONTROLLERS -->
+  <script src="/src/data/modulesData.js"></script>
+  <script src="/src/data/courseChapters.js"></script>
+  <script src="/src/data/questions.js"></script>
+  <script src="/src/app.js"></script>
+
+</body>
+</html>
